@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Update
         run: |
-          git remote add upstream https://github.com/ppy/osu-web/osu-web.git
+          git remote add upstream https://github.com/ppy/osu-web.git
           git fetch upstream
           git merge upstream/main --no-edit
       - name: Check mods file
