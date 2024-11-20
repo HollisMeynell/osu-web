@@ -1,0 +1,35 @@
+name: Sync Upstream
+
+on: 
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      sync_test_mode:
+        description: 'Fork Sync Test Mode'
+        type: boolean
+        default: false
+
+jobs: 
+  sync-upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Update
+        run: |
+          git remote add upstream git@github.com:ppy/osu-web.git
+          git fetch upstream
+          git merge upstream/main --no-edit
+      - name: Check mods file
+        id: check_change
+        run: |
+          git diff --name-only HEAD^ HEAD > changed_files.txt
+          if grep -q 'database/mods.json' changed_files.txt; then
+            echo "mods_changed=true" >> $GITHUB_ENV
+          else
+            echo "mods_changed=false" >> $GITHUB_ENV
+          fi
+      - name: Post message
+        if: env.mods_changed == 'true'
+        run: curl "${{ secrets.PATH }}" -F "title=osu-web" -F "message=mods json update"
