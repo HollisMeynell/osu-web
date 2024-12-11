@@ -29,6 +29,7 @@ use App\Models\Multiplayer\Room;
 use App\Models\OAuth\Client;
 use App\Models\Score\Best\Model as ScoreBest;
 use App\Models\Solo;
+use App\Models\Team;
 use App\Models\Traits\ReportableInterface;
 use App\Models\User;
 use App\Models\UserContestEntry;
@@ -617,8 +618,10 @@ class OsuAuthorize
             return $prefix.'owner';
         }
 
+        $beatmapset->loadMissing('beatmaps.beatmapOwners');
+
         foreach ($beatmapset->beatmaps as $beatmap) {
-            if ($userId === $beatmap->user_id) {
+            if ($beatmap->isOwner($user)) {
                 return $prefix.'owner';
             }
         }
@@ -1837,6 +1840,26 @@ class OsuAuthorize
 
     /**
      * @param User|null $user
+     * @param Room $room
+     * @return string
+     * @throws AuthorizationCheckException
+     */
+    public function checkMultiplayerRoomDestroy(?User $user, Room $room): string
+    {
+        $prefix = 'room.destroy.';
+
+        $this->ensureLoggedIn($user);
+        $this->ensureCleanRecord($user);
+
+        if ($room->user_id !== $user->getKey()) {
+            return $prefix.'not_owner';
+        }
+
+        return 'ok';
+    }
+
+    /**
+     * @param User|null $user
      * @return string
      * @throws AuthorizationCheckException
      */
@@ -1883,6 +1906,13 @@ class OsuAuthorize
         }
 
         return 'ok';
+    }
+
+    public function checkTeamUpdate(?User $user, Team $team): ?string
+    {
+        $this->ensureLoggedIn($user);
+
+        return $team->leader_id === $user->getKey() ? 'ok' : null;
     }
 
     public function checkUserGroupEventShowActor(?User $user, UserGroupEvent $event): string
@@ -2028,6 +2058,20 @@ class OsuAuthorize
 
         // yet another admin only =D
         return 'unauthorized';
+    }
+
+    public function checkBeatmapTagStore(?User $user, Beatmap $beatmap): string
+    {
+        $prefix = 'beatmap_tag.store.';
+
+        $this->ensureLoggedIn($user);
+        $this->ensureCleanRecord($user);
+
+        if (!$user->soloScores()->where('beatmap_id', $beatmap->getKey())->exists()) {
+            return $prefix.'no_score';
+        }
+
+        return 'ok';
     }
 
     /**
